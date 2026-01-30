@@ -4,9 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -23,33 +20,42 @@ wheels/
 .installed.cfg
 *.egg
 
-# Streamlit
-.streamlit/
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
 
-# Banco de dados
-db/*.db
-db/*.sqlite
-db/*.sqlite3
-
-# Dados
-data/*.xlsx
-data/*.xls
-data/*.csv
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+db/activity_control.db
+
+# Data files
+data/
+*.xlsx
+*.xls
+
+# Environment variables
+.env
+.env.local
+
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
 
-# Arquivos temporários
-*.tmp
-*.temp
+# Streamlit
+.streamlit/secrets.toml
