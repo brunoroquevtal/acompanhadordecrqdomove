@@ -50,27 +50,65 @@ def load_excel_file(uploaded_file):
             # Ler aba
             df = pd.read_excel(uploaded_file, sheet_name=sheet_name)
             
-            # Verificar se já tem cabeçalhos corretos
+            # Verificar se o dataframe está vazio
+            if df.empty or len(df.columns) == 0:
+                continue
+            
+            # Normalizar nomes das colunas (remover espaços, normalizar maiúsculas/minúsculas)
+            df.columns = [str(col).strip() for col in df.columns]
+            
+            # Mapear nomes de colunas para os esperados (case-insensitive e tolerante a espaços)
             expected_cols = ["Seq", "Atividade", "Grupo", "Localidade", 
                             "Executor", "Telefone", "Inicio", "Fim", "Tempo"]
             
-            # Se as colunas já estão corretas, usar como estão
-            if list(df.columns[:9]) == expected_cols:
-                df = df.iloc[:, :9]  # Manter apenas as 9 primeiras colunas
-            elif len(df.columns) >= 9:
-                # Mapear colunas (assumindo que as colunas estão na ordem correta)
-                df = df.iloc[:, :9]  # Pegar apenas as 9 primeiras colunas
-                df.columns = expected_cols
-            else:
-                # Se não tiver cabeçalhos ou estrutura diferente, tentar mapear
-                st.warning(f"Estrutura da aba {sheet_name} pode estar incorreta. Esperado: 9 colunas, encontrado: {len(df.columns)}")
+            # Criar mapeamento flexível
+            col_mapping = {}
+            for i, expected in enumerate(expected_cols):
+                # Procurar coluna correspondente (case-insensitive, ignorando espaços)
+                found = False
+                for j, actual_col in enumerate(df.columns):
+                    if actual_col.strip().lower() == expected.lower():
+                        col_mapping[expected] = j
+                        found = True
+                        break
+                
+                # Se não encontrou, usar posição por índice (assumindo ordem)
+                if not found and i < len(df.columns):
+                    col_mapping[expected] = i
+            
+            # Verificar se temos pelo menos as colunas essenciais
+            if len(col_mapping) < 5:  # Mínimo: Seq, Atividade, Inicio, Fim, Tempo
+                st.warning(f"Estrutura da aba {sheet_name} pode estar incorreta. Colunas encontradas: {list(df.columns[:9])}")
                 continue
+            
+            # Selecionar e renomear colunas
+            selected_cols = []
+            for expected in expected_cols:
+                if expected in col_mapping:
+                    idx = col_mapping[expected]
+                    if idx < len(df.columns):
+                        selected_cols.append(df.columns[idx])
+                    else:
+                        selected_cols.append(None)
+                else:
+                    selected_cols.append(None)
+            
+            # Criar novo dataframe com colunas corretas
+            new_df = pd.DataFrame()
+            for i, expected in enumerate(expected_cols):
+                if selected_cols[i] is not None and selected_cols[i] in df.columns:
+                    new_df[expected] = df[selected_cols[i]]
+                else:
+                    new_df[expected] = None
+            
+            df = new_df
             
             # Limpar dados
             df = df.dropna(subset=["Seq", "Atividade"])  # Remover linhas sem Seq ou Atividade
             
             # Converter tipos
             try:
+                df = df.copy()  # Evitar SettingWithCopyWarning
                 df["Seq"] = pd.to_numeric(df["Seq"], errors='coerce').astype('Int64')
                 df = df.dropna(subset=["Seq"])  # Remover linhas sem Seq válido
             except Exception:
@@ -154,6 +192,21 @@ def merge_control_data(excel_data, control_data):
                 if is_empty_or_zero:
                     df.at[idx, "Is_Milestone"] = True
         
+        # Converter colunas sensíveis para string ANTES do merge (evitar tipos mistos do PyArrow)
+        def safe_str_convert(val):
+            if pd.isna(val) or val is None:
+                return ""
+            try:
+                if isinstance(val, (int, float)):
+                    return str(int(val)) if isinstance(val, float) and val.is_integer() else str(val)
+                return str(val)
+            except:
+                return ""
+        
+        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+            if col in df.columns:
+                df[col] = df[col].apply(safe_str_convert)
+        
         # Preencher com dados de controle existentes
         for idx, row in df.iterrows():
             seq = int(row["Seq"])
@@ -173,6 +226,12 @@ def merge_control_data(excel_data, control_data):
                 # Se não está no banco mas foi detectado como milestone, manter True
                 # (já foi definido acima)
                 df.at[idx, "Predecessoras"] = control.get("predecessoras", "")
+        
+        # Garantir que todas as colunas sensíveis sejam string ANTES de retornar
+        # Isso evita erros do PyArrow mesmo que as colunas não sejam exibidas
+        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+            if col in df.columns:
+                df[col] = df[col].apply(safe_str_convert)
         
         merged_data[sequencia] = {
             "dataframe": df,
@@ -198,13 +257,37 @@ def validate_excel_structure(uploaded_file):
         if len(excel_file.sheet_names) == 0:
             return False
         
-        # Verificar se pelo menos uma aba tem estrutura válida
-        for sheet_name in excel_file.sheet_names[:1]:  # Verificar primeira aba
-            df = pd.read_excel(uploaded_file, sheet_name=sheet_name, nrows=5)
-            if len(df.columns) < 5:  # Mínimo de colunas esperadas
-                return False
+        # Verificar se pelo menos uma aba reconhecida tem estrutura válida
+        expected_cols_lower = ["seq", "atividade", "grupo", "localidade", 
+                              "executor", "telefone", "inicio", "fim", "tempo"]
         
-        return True
+        for sheet_name in excel_file.sheet_names:
+            # Verificar se a aba é uma das sequências esperadas
+            is_recognized = False
+            for seq_key in SEQUENCIAS.keys():
+                if seq_key in sheet_name.upper():
+                    is_recognized = True
+                    break
+            
+            if not is_recognized:
+                continue
+            
+            # Ler aba
+            df = pd.read_excel(uploaded_file, sheet_name=sheet_name, nrows=5)
+            
+            # Verificar se está vazia
+            if df.empty or len(df.columns) == 0:
+                continue
+            
+            # Normalizar nomes das colunas
+            df.columns = [str(col).strip().lower() for col in df.columns]
+            
+            # Verificar se tem pelo menos algumas colunas esperadas
+            found_cols = sum(1 for col in expected_cols_lower[:5] if col in df.columns)
+            if found_cols >= 3:  # Pelo menos Seq, Atividade e mais uma
+                return True
+        
+        return False
     
-    except Exception:
+    except Exception as e:
         return False

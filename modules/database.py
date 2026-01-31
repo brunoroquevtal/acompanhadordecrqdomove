@@ -426,6 +426,22 @@ class DatabaseManager:
                 # Converter Seq para Int64
                 if "Seq" in df.columns:
                     df["Seq"] = pd.to_numeric(df["Seq"], errors='coerce').astype('Int64')
+                
+                # Converter colunas sensíveis para string (evitar tipos mistos do PyArrow)
+                def safe_str_convert(val):
+                    if pd.isna(val) or val is None:
+                        return ""
+                    try:
+                        if isinstance(val, (int, float)):
+                            return str(int(val)) if isinstance(val, float) and val.is_integer() else str(val)
+                        return str(val)
+                    except:
+                        return ""
+                
+                for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+                    if col in df.columns:
+                        df[col] = df[col].apply(safe_str_convert)
+                
                 data_dict[sequencia] = {
                     "dataframe": df,
                     "sheet_name": sequencia

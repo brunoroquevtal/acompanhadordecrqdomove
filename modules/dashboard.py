@@ -274,11 +274,36 @@ def render_activities_tables(data_dict):
     Args:
         data_dict: Dicionário com dataframes
     """
+    import pandas as pd
+    
+    # Função para garantir que colunas sensíveis sejam string
+    def ensure_string_columns(df):
+        """Garante que colunas sensíveis sejam string para evitar erros do PyArrow"""
+        if df is None or len(df) == 0:
+            return df
+        
+        def safe_str_convert(val):
+            if pd.isna(val) or val is None:
+                return ""
+            try:
+                if isinstance(val, (int, float)):
+                    return str(int(val)) if isinstance(val, float) and val.is_integer() else str(val)
+                return str(val)
+            except:
+                return ""
+        
+        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+            if col in df.columns:
+                df[col] = df[col].apply(safe_str_convert)
+        
+        return df
+    
     st.subheader("📋 Tabelas de Detalhes")
     
     # Tabela 1: Atividades em Execução (segmentada por CRQ)
     st.markdown("#### ⏳ Atividades em Execução")
     exec_df = get_activities_by_status(data_dict, "Em Execução")
+    exec_df = ensure_string_columns(exec_df)
     
     if len(exec_df) > 0:
         # Agrupar por CRQ
@@ -291,13 +316,13 @@ def render_activities_tables(data_dict):
                 nome = crq_info.get("nome", crq)
                 
                 st.markdown(f"**{emoji} {nome}** ({len(crq_df)} atividades)")
-                display_cols = ["Seq", "Atividade", "Grupo", "Tempo", "Horario_Inicio_Real"]
+                display_cols = ["Seq", "Atividade", "CRQ", "Grupo", "Tempo", "Horario_Inicio_Real"]
                 available_cols = [col for col in display_cols if col in crq_df.columns]
                 crq_display = crq_df[available_cols].sort_values("Seq")
                 st.dataframe(crq_display, width='stretch', hide_index=True)
                 st.divider()
         else:
-            display_cols = ["Seq", "Atividade", "Grupo", "Tempo", "Horario_Inicio_Real"]
+            display_cols = ["Seq", "Atividade", "CRQ", "Grupo", "Tempo", "Horario_Inicio_Real"]
             available_cols = [col for col in display_cols if col in exec_df.columns]
             exec_display = exec_df[available_cols].sort_values("Seq")
             st.dataframe(exec_display, width='stretch', hide_index=True)
@@ -309,6 +334,7 @@ def render_activities_tables(data_dict):
     # Tabela 2: Atividades Atrasadas (segmentada por CRQ)
     st.markdown("#### 🚨 Atividades Atrasadas")
     delayed_df = get_delayed_activities(data_dict)
+    delayed_df = ensure_string_columns(delayed_df)
     
     if len(delayed_df) > 0:
         from modules.calculations import format_delay
@@ -325,7 +351,7 @@ def render_activities_tables(data_dict):
                 nome = crq_info.get("nome", crq)
                 
                 st.markdown(f"**{emoji} {nome}** ({len(crq_df)} atividades)")
-                display_cols = ["Seq", "Atividade", "Grupo", "Atraso", "Observacoes"]
+                display_cols = ["Seq", "Atividade", "CRQ", "Grupo", "Atraso", "Observacoes"]
                 available_cols = [col for col in display_cols if col in crq_df.columns]
                 # Ordenar antes de filtrar colunas (usando Atraso_Minutos que existe no DataFrame original)
                 if "Atraso_Minutos" in crq_df.columns:
@@ -336,7 +362,7 @@ def render_activities_tables(data_dict):
                 st.dataframe(crq_display, width='stretch', hide_index=True)
                 st.divider()
         else:
-            display_cols = ["Seq", "Atividade", "Grupo", "Atraso", "Observacoes"]
+            display_cols = ["Seq", "Atividade", "CRQ", "Grupo", "Atraso", "Observacoes"]
             available_cols = [col for col in display_cols if col in delayed_display.columns]
             # Ordenar antes de filtrar colunas (usando Atraso_Minutos que existe no DataFrame original)
             if "Atraso_Minutos" in delayed_display.columns:
@@ -353,6 +379,7 @@ def render_activities_tables(data_dict):
     # Tabela 3: Próximas Atividades (segmentada por CRQ)
     st.markdown("#### 📅 Próximas Atividades a Executar")
     next_df = get_next_activities(data_dict, limit=10)
+    next_df = ensure_string_columns(next_df)
     
     if len(next_df) > 0:
         # Agrupar por CRQ
@@ -365,7 +392,7 @@ def render_activities_tables(data_dict):
                 nome = crq_info.get("nome", crq)
                 
                 st.markdown(f"**{emoji} {nome}** ({len(crq_df)} atividades)")
-                display_cols = ["Seq", "Atividade", "Grupo", "Inicio"]
+                display_cols = ["Seq", "Atividade", "CRQ", "Grupo", "Inicio"]
                 available_cols = [col for col in display_cols if col in crq_df.columns]
                 crq_display = crq_df[available_cols].sort_values("Inicio")
                 
@@ -378,7 +405,7 @@ def render_activities_tables(data_dict):
                 st.dataframe(crq_display, width='stretch', hide_index=True)
                 st.divider()
         else:
-            display_cols = ["Seq", "Atividade", "Grupo", "Inicio"]
+            display_cols = ["Seq", "Atividade", "CRQ", "Grupo", "Inicio"]
             available_cols = [col for col in display_cols if col in next_df.columns]
             next_display = next_df[available_cols].sort_values("Inicio")
             
@@ -397,6 +424,7 @@ def render_activities_tables(data_dict):
     # Tabela 4: Atividades Bloqueadas por Dependências (segmentada por CRQ)
     st.markdown("#### 🔒 Atividades Bloqueadas por Dependências")
     blocked_df = get_activities_blocked_by_dependencies(data_dict)
+    blocked_df = ensure_string_columns(blocked_df)
     
     if len(blocked_df) > 0:
         # Agrupar por CRQ
@@ -409,13 +437,13 @@ def render_activities_tables(data_dict):
                 nome = crq_info.get("nome", crq)
                 
                 st.markdown(f"**{emoji} {nome}** ({len(crq_df)} atividades bloqueadas)")
-                display_cols = ["Seq", "Atividade", "Status", "Predecessoras", "Predecessoras_Pendentes"]
+                display_cols = ["Seq", "Atividade", "CRQ", "Status", "Predecessoras", "Predecessoras_Pendentes"]
                 available_cols = [col for col in display_cols if col in crq_df.columns]
                 crq_display = crq_df[available_cols].sort_values("Seq")
                 st.dataframe(crq_display, width='stretch', hide_index=True)
                 st.divider()
         else:
-            display_cols = ["Seq", "Atividade", "Status", "Predecessoras", "Predecessoras_Pendentes"]
+            display_cols = ["Seq", "Atividade", "CRQ", "Status", "Predecessoras", "Predecessoras_Pendentes"]
             available_cols = [col for col in display_cols if col in blocked_df.columns]
             blocked_display = blocked_df[available_cols].sort_values("Seq")
             st.dataframe(blocked_display, width='stretch', hide_index=True)

@@ -140,6 +140,22 @@ def render_editor_tab(data_dict, crq_selecionado, db_manager, tab_name):
         if df is None or len(df) == 0:
             st.info("Nenhum dado disponível para este CRQ")
             return
+        
+        # Garantir que colunas sensíveis sejam string ANTES de qualquer processamento
+        # Isso evita erros do PyArrow mesmo que as colunas não sejam exibidas
+        def safe_str_convert(val):
+            if pd.isna(val) or val is None:
+                return ""
+            try:
+                if isinstance(val, (int, float)):
+                    return str(int(val)) if isinstance(val, float) and val.is_integer() else str(val)
+                return str(val)
+            except:
+                return ""
+        
+        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+            if col in df.columns:
+                df[col] = df[col].apply(safe_str_convert)
     except Exception as e:
         st.error(f"❌ Erro ao preparar dataframe: {str(e)}")
         import traceback
@@ -199,10 +215,10 @@ def render_editor_tab(data_dict, crq_selecionado, db_manager, tab_name):
     
     # Selecionar colunas para exibir (removendo colunas sensíveis: Executor, Localidade, Telefone)
     columns_to_show = [
-        "Seq", "Atividade", "Grupo", "Status",
+        "Seq", "Atividade", "CRQ", "Grupo", "Status",
         "Inicio", "Fim",
         "Horario_Inicio_Real", "Horario_Fim_Real",
-        "CRQ", "Is_Milestone",
+        "Is_Milestone",
         "Tempo", "Atraso_Minutos", "Observacoes", "Predecessoras"
     ]
     
