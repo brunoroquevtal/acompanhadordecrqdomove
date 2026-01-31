@@ -6,6 +6,53 @@ from datetime import datetime, timedelta
 from config import DATE_FORMAT, STATUS_OPCOES, SEQUENCIAS, TOTAL_GERAL
 
 
+def convert_time_to_minutes(time_str):
+    """
+    Converte tempo no formato hh:mm:ss ou hh:mm para minutos
+    
+    Args:
+        time_str: String no formato "hh:mm:ss" ou "hh:mm" ou número (já em minutos)
+        
+    Returns:
+        float: Tempo em minutos
+    """
+    if pd.isna(time_str) or time_str is None:
+        return 0
+    
+    # Se já é um número, assumir que já está em minutos
+    if isinstance(time_str, (int, float)):
+        return float(time_str)
+    
+    # Converter para string
+    time_str = str(time_str).strip()
+    
+    if not time_str or time_str == "" or time_str.lower() == "nan":
+        return 0
+    
+    try:
+        # Tentar converter diretamente para número (caso já esteja em minutos)
+        return float(time_str)
+    except ValueError:
+        pass
+    
+    # Tentar parsear formato hh:mm:ss ou hh:mm
+    try:
+        parts = time_str.split(":")
+        if len(parts) == 3:  # hh:mm:ss
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            seconds = int(parts[2])
+            return hours * 60 + minutes + seconds / 60
+        elif len(parts) == 2:  # hh:mm
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            return hours * 60 + minutes
+        else:
+            return 0
+    except (ValueError, IndexError):
+        return 0
+
+
 def calculate_delay(fim_planejado, fim_real):
     """
     Calcula atraso/adiantamento em minutos

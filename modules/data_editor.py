@@ -487,6 +487,8 @@ def validate_and_save_activity(df_filtered, original_idx, seq, seq_crq, crq_sele
     Returns:
         bool: True se salvou com sucesso, False caso contrário
     """
+    import streamlit as st  # Garantir que st está disponível
+    
     # Normalizar strings vazias
     if new_inicio_real is None or (isinstance(new_inicio_real, str) and new_inicio_real.strip() == ""):
         new_inicio_real = ""

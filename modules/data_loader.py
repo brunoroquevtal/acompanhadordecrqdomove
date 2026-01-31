@@ -148,9 +148,16 @@ def load_excel_file(uploaded_file):
                 except:
                     return ""
             
-            for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+            for col in ["Telefone", "Grupo", "Localidade", "Executor", "Atividade"]:
                 if col in df.columns:
                     df[col] = df[col].apply(safe_str_convert)
+            
+            # Converter coluna Tempo de hh:mm:ss para minutos
+            if "Tempo" in df.columns:
+                from modules.calculations import convert_time_to_minutes
+                df["Tempo"] = df["Tempo"].apply(convert_time_to_minutes)
+                # Converter para float (minutos)
+                df["Tempo"] = pd.to_numeric(df["Tempo"], errors='coerce').fillna(0)
             
             # Adicionar CRQ ao dataframe
             df["CRQ"] = sequencia
@@ -217,9 +224,17 @@ def merge_control_data(excel_data, control_data):
             except:
                 return ""
         
-        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Atividade"]:
             if col in df.columns:
                 df[col] = df[col].apply(safe_str_convert)
+        
+        # Converter coluna Tempo de hh:mm:ss para minutos (se ainda não foi convertido)
+        if "Tempo" in df.columns:
+            from modules.calculations import convert_time_to_minutes
+            # Verificar se já está em formato numérico
+            if not pd.api.types.is_numeric_dtype(df["Tempo"]):
+                df["Tempo"] = df["Tempo"].apply(convert_time_to_minutes)
+                df["Tempo"] = pd.to_numeric(df["Tempo"], errors='coerce').fillna(0)
         
         # Preencher com dados de controle existentes
         for idx, row in df.iterrows():
@@ -253,9 +268,16 @@ def merge_control_data(excel_data, control_data):
         
         # Garantir que todas as colunas sensíveis sejam string ANTES de retornar
         # Isso evita erros do PyArrow mesmo que as colunas não sejam exibidas
-        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade"]:
+        for col in ["Telefone", "Grupo", "Localidade", "Executor", "Atividade"]:
             if col in df.columns:
                 df[col] = df[col].apply(safe_str_convert)
+        
+        # Garantir que Tempo está em minutos (numérico)
+        if "Tempo" in df.columns:
+            from modules.calculations import convert_time_to_minutes
+            if not pd.api.types.is_numeric_dtype(df["Tempo"]):
+                df["Tempo"] = df["Tempo"].apply(convert_time_to_minutes)
+                df["Tempo"] = pd.to_numeric(df["Tempo"], errors='coerce').fillna(0)
         
         merged_data[sequencia] = {
             "dataframe": df,

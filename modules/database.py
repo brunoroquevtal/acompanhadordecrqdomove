@@ -634,7 +634,7 @@ class DatabaseManager:
                             str(row.get("Telefone", "")),
                             inicio_str,
                             fim_str,
-                            str(row.get("Tempo", ""))
+                            float(row.get("Tempo", 0)) if pd.notna(row.get("Tempo", 0)) else 0
                         ))
                     total_saved += 1
                 except Exception as e:
@@ -670,6 +670,7 @@ class DatabaseManager:
             dict: Dicionário com dataframes de cada sequência ou None se não houver dados
         """
         import pandas as pd
+        from modules.calculations import convert_time_to_minutes
         
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -715,7 +716,7 @@ class DatabaseManager:
                 "Telefone": row[7] or "",
                 "Inicio": inicio,
                 "Fim": fim,
-                "Tempo": row[10] or "",
+                "Tempo": convert_time_to_minutes(row[10]) if row[10] else 0,
                 "CRQ": sequencia,
                 "Excel_Data_ID": excel_data_id  # ID único para identificar a linha
             })
