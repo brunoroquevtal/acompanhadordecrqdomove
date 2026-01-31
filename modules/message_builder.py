@@ -1,7 +1,7 @@
 """
 Módulo para construção de mensagem consolidada para WhatsApp
 """
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from config import DATE_FORMAT, SEQUENCIAS
 from modules.calculations import (
     calculate_statistics, get_delayed_activities, 
