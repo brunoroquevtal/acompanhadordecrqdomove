@@ -562,7 +562,7 @@ def render_delete_activity(data_dict, db_manager):
                     excel_data_id = row.get("Excel_Data_ID", 0)
                     break
             
-            if atividade_row:
+            if atividade_row is not None:
                 st.info(f"""
                 **Atividade selecionada:**
                 - Seq: {seq_selecionado}
