@@ -139,17 +139,4 @@ def render_login_page():
                     st.rerun()
                 else:
                     st.error("❌ Usuário ou senha incorretos!")
-        
-        st.divider()
-        st.markdown("#### ℹ️ Usuários do Sistema")
-        st.markdown("""
-        - **Visualizador** (visualizador / visual123)
-          - Acesso apenas ao Dashboard
-        
-        - **Líder da Mudança** (lider / lider123)
-          - Acesso ao Dashboard, Dados e Comunicação
-          - Pode editar dados das CRQs
-        
-        - **Administrador** (admin / admin123)
-          - Acesso completo a todas as funcionalidades
-        """)
+

@@ -148,7 +148,7 @@ def render_editor_tab(data_dict, crq_selecionado, db_manager, tab_name):
         return
     
     # Filtros
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         status_filter = st.selectbox(
@@ -158,14 +158,6 @@ def render_editor_tab(data_dict, crq_selecionado, db_manager, tab_name):
         )
     
     with col2:
-        executores = ["Todos"] + sorted(df["Executor"].dropna().unique().tolist())
-        executor_filter = st.selectbox(
-            "Filtro por Executor:",
-            executores,
-            key=f"executor_filter_{tab_name}"
-        )
-    
-    with col3:
         busca = st.text_input(
             "Buscar por Atividade:",
             key=f"search_activity_{tab_name}"
@@ -176,9 +168,6 @@ def render_editor_tab(data_dict, crq_selecionado, db_manager, tab_name):
     
     if status_filter != "Todos":
         df_filtered = df_filtered[df_filtered["Status"] == status_filter]
-    
-    if executor_filter != "Todos":
-        df_filtered = df_filtered[df_filtered["Executor"] == executor_filter]
     
     if busca:
         df_filtered = df_filtered[
@@ -204,18 +193,17 @@ def render_editor_tab(data_dict, crq_selecionado, db_manager, tab_name):
             return ""
     
     # Converter colunas problemáticas para string
-    for col in ["Telefone", "Grupo", "Localidade", "Executor", "Tempo", "Atividade", "Observacoes"]:
+    for col in ["Grupo", "Tempo", "Atividade", "Observacoes"]:
         if col in display_df.columns:
             display_df[col] = display_df[col].apply(convert_to_string_safe)
     
-    # Selecionar colunas para exibir
+    # Selecionar colunas para exibir (removendo colunas sensíveis: Executor, Localidade, Telefone)
     columns_to_show = [
-        "Seq", "Atividade", "Status",
+        "Seq", "Atividade", "Grupo", "Status",
         "Inicio", "Fim",
         "Horario_Inicio_Real", "Horario_Fim_Real",
-        "CRQ", "Executor", "Is_Milestone",
-        "Tempo", "Atraso_Minutos", "Observacoes", "Predecessoras",
-        "Grupo", "Localidade", "Telefone"
+        "CRQ", "Is_Milestone",
+        "Tempo", "Atraso_Minutos", "Observacoes", "Predecessoras"
     ]
     
     available_cols = [col for col in columns_to_show if col in display_df.columns]

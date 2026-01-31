@@ -497,6 +497,7 @@ elif page == "Configurações":
     
     Cada aba deve ter as seguintes colunas:
     - Seq, Atividade, Grupo, Localidade, Executor, Telefone, Inicio, Fim, Tempo
+    (Nota: As colunas Localidade, Executor e Telefone são importadas mas não são exibidas por questões de segurança)
     """)
     
     st.divider()
