@@ -5,6 +5,7 @@ Aplicação web interativa para gerenciamento de janelas de mudança de TI
 import streamlit as st
 import pyperclip
 import json
+import pandas as pd
 from datetime import datetime
 from modules.database import DatabaseManager
 from modules.data_loader import load_excel_file, merge_control_data, validate_excel_structure
