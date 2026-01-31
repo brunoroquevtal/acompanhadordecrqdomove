@@ -24,8 +24,9 @@ def build_whatsapp_message(data_dict):
     # Obter total real importado
     total_geral = stats['geral']['total']
     
-    # Cabeçalho
-    now = datetime.now()
+    # Cabeçalho - usar GMT-3 (Brasil)
+    gmt_minus_3 = timezone(timedelta(hours=-3))
+    now = datetime.now(gmt_minus_3)
     data_str = now.strftime("%d/%m/%Y")
     hora_str = now.strftime("%H:%M:%S")
     
@@ -98,7 +99,7 @@ def build_whatsapp_message(data_dict):
         
         message += "\n━━━━━━━━━━━━━━━━━━\n\n"
     
-    # Rodapé
+    # Rodapé - usar o mesmo horário GMT-3
     atualizado_str = now.strftime("%d/%m/%Y %H:%M:%S")
     message += f"✅ Atualizado em: {atualizado_str}\n"
     

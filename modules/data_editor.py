@@ -568,8 +568,15 @@ def validate_and_save_activity(df_filtered, original_idx, seq, seq_crq, crq_sele
             atraso_minutos = calculate_delay(fim_planejado, new_fim_real)
     
     # Atualizar status se necessário
-    if atraso_minutos != 0 and new_status == "Concluído":
-        new_status = update_status_by_delay(new_status, atraso_minutos)
+    # IMPORTANTE: Se o usuário escolheu "Concluído", manter "Concluído" mesmo se houver atraso
+    # Só alterar automaticamente se o status não foi explicitamente escolhido como "Concluído"
+    # ou se houver atraso positivo (atrasado)
+    if new_status == "Concluído":
+        # Se o usuário escolheu "Concluído", só mudar para "Atrasado" se houver atraso positivo
+        # Não mudar para "Adiantado" se o usuário escolheu "Concluído"
+        if atraso_minutos > 0:
+            new_status = "Atrasado"
+        # Se atraso_minutos < 0 (adiantado) ou == 0, manter "Concluído" como o usuário escolheu
     
     # Converter strings vazias para None
     horario_inicio_real_final = new_inicio_real.strip() if new_inicio_real and new_inicio_real.strip() else None
