@@ -13,11 +13,12 @@ from modules.dashboard import render_full_dashboard
 from modules.data_editor import render_data_editor
 from modules.message_builder import build_whatsapp_message
 from modules.calculations import calculate_statistics
+from modules.crud_activities import render_crud_activities
 from modules.auth import (
     init_session_auth, is_authenticated, has_permission,
     can_edit_data, get_user_name, get_user_type, render_login_page, logout
 )
-from config import DATE_FORMAT
+from config import DATE_FORMAT, SEQUENCIAS
 
 
 # Configuração da página
@@ -219,6 +220,9 @@ with st.sidebar:
         pages_available.append("Dados")
     if has_permission("mensagem"):
         pages_available.append("Comunicação")
+    # CRUD Atividades - apenas para administradores
+    if get_user_type() == "admin":
+        pages_available.append("CRUD Atividades")
     if has_permission("configuracoes"):
         pages_available.append("Configurações")
     
@@ -313,6 +317,109 @@ with st.sidebar:
         # Opção para limpar todos os dados e reimportar
         st.divider()
         st.subheader("⚠️ Gerenciamento de Dados")
+        
+        # Remover seqs específicos
+        with st.expander("🗑️ Remover Sequências Específicas"):
+            st.caption("Remova registros específicos por seq e CRQ")
+            
+            # Selecionar CRQ
+            crq_opcoes = list(SEQUENCIAS.keys())
+            crq_selecionado = st.selectbox(
+                "Selecione a CRQ:",
+                crq_opcoes,
+                key="remover_crq"
+            )
+            
+            # Input para seqs (separados por vírgula ou quebra de linha)
+            seqs_input = st.text_area(
+                "Digite os seqs para remover (um por linha ou separados por vírgula):",
+                height=100,
+                key="remover_seqs_input",
+                help="Exemplo: 999093\n999094\n999095"
+            )
+            
+            if st.button("🗑️ Remover Sequências", type="primary", key="btn_remover_seqs"):
+                if seqs_input.strip():
+                    # Processar input: separar por vírgula ou quebra de linha
+                    seqs_raw = seqs_input.replace(",", "\n").split("\n")
+                    seqs_para_remover = []
+                    
+                    for seq_str in seqs_raw:
+                        seq_str = seq_str.strip()
+                        if seq_str:
+                            try:
+                                seqs_para_remover.append(int(seq_str))
+                            except ValueError:
+                                st.error(f"❌ Seq inválido: {seq_str}")
+                                st.stop()
+                    
+                    if seqs_para_remover:
+                        # Executar remoção
+                        try:
+                            conn = st.session_state.db_manager.get_connection()
+                            cursor = conn.cursor()
+                            
+                            # Contar registros antes
+                            placeholders = ','.join(['?'] * len(seqs_para_remover))
+                            params = seqs_para_remover + [crq_selecionado]
+                            
+                            cursor.execute(f"""
+                                SELECT COUNT(*) FROM activity_control 
+                                WHERE seq IN ({placeholders}) AND sequencia = ?
+                            """, params)
+                            activity_antes = cursor.fetchone()[0]
+                            
+                            cursor.execute(f"""
+                                SELECT COUNT(*) FROM excel_data 
+                                WHERE seq IN ({placeholders}) AND sequencia = ?
+                            """, params)
+                            excel_antes = cursor.fetchone()[0]
+                            
+                            if activity_antes == 0 and excel_antes == 0:
+                                st.warning("⚠️ Nenhum registro encontrado para remover com os seqs informados.")
+                            else:
+                                # Remover
+                                cursor.execute(f"""
+                                    DELETE FROM activity_control 
+                                    WHERE seq IN ({placeholders}) AND sequencia = ?
+                                """, params)
+                                activity_removidos = cursor.rowcount
+                                
+                                cursor.execute(f"""
+                                    DELETE FROM excel_data 
+                                    WHERE seq IN ({placeholders}) AND sequencia = ?
+                                """, params)
+                                excel_removidos = cursor.rowcount
+                                
+                                conn.commit()
+                                conn.close()
+                                
+                                st.success(f"✅ Remoção concluída!")
+                                st.info(f"""
+                                **Registros removidos:**
+                                - activity_control: {activity_removidos}
+                                - excel_data: {excel_removidos}
+                                - **Total:** {activity_removidos + excel_removidos}
+                                """)
+                                
+                                # Recarregar dados do banco
+                                saved_excel_data = st.session_state.db_manager.load_excel_data()
+                                if saved_excel_data:
+                                    control_data = st.session_state.db_manager.get_all_activities_control()
+                                    merged_data = merge_control_data(saved_excel_data, control_data)
+                                    st.session_state.data_dict = merged_data
+                                
+                                st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ Erro ao remover registros: {str(e)}")
+                            import traceback
+                            st.code(traceback.format_exc())
+                    else:
+                        st.warning("⚠️ Nenhum seq válido encontrado")
+                else:
+                    st.warning("⚠️ Digite pelo menos um seq para remover")
+        
         st.warning("**Atenção:** A ação abaixo irá apagar TODOS os dados do banco (atividades e controles) e permitir uma nova importação.")
         
         if st.button("🗑️ Limpar Todos os Dados e Reimportar", width='stretch', type="secondary"):
@@ -512,6 +619,38 @@ elif page == "Dados":
         st.warning("⚠️ Nenhum dado carregado. Por favor, carregue um arquivo Excel primeiro na sidebar.")
 
 elif page == "Comunicação":
+    st.header("💬 Comunicação")
+    
+    if st.session_state.data_dict:
+        message = build_whatsapp_message(st.session_state.data_dict)
+        
+        # Exibir mensagem
+        st.text_area(
+            "Mensagem para WhatsApp:",
+            value=message,
+            height=400,
+            key="whatsapp_message"
+        )
+        
+        # Botão para copiar
+        if st.button("📋 Copiar Mensagem", width='stretch'):
+            pyperclip.copy(message)
+            st.success("✅ Mensagem copiada para a área de transferência!")
+    else:
+        st.warning("⚠️ Nenhum dado carregado. Por favor, carregue um arquivo Excel primeiro na sidebar.")
+
+elif page == "CRUD Atividades":
+    # Verificar se é administrador - dupla verificação de segurança
+    if get_user_type() != "admin":
+        st.error("❌ Você não tem permissão para acessar esta página. Apenas administradores podem acessar o CRUD de Atividades.")
+        st.info("💡 Faça login como administrador para acessar esta funcionalidade.")
+        st.stop()
+    
+    # Verificar se há dados carregados
+    if not st.session_state.data_dict:
+        st.warning("⚠️ Nenhum dado carregado. Por favor, carregue um arquivo Excel primeiro na sidebar.")
+    else:
+        render_crud_activities(st.session_state.data_dict, st.session_state.db_manager)
     st.header("💬 Comunicação")
     
     if st.session_state.data_dict:
