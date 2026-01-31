@@ -41,13 +41,14 @@ def build_whatsapp_message(data_dict):
     message += f"  🔴 Atrasadas: {stats['geral']['atrasadas']}/{total_geral} ({stats['geral'].get('pct_atrasadas', 0):.1f}%)\n\n"
     message += f"━━━━━━━━━━━━━━━━━━\n"
     
-    # Blocos de CRQs (apenas se houver atividades em execução)
+    # Blocos de CRQs (mostrar todos os CRQs que têm atividades, independente do status)
     for sequencia_key, sequencia_info in SEQUENCIAS.items():
         if sequencia_key in stats["por_sequencia"]:
             seq_stats = stats["por_sequencia"][sequencia_key]
             
-            # Mostrar apenas se houver atividades em execução
-            if seq_stats["em_execucao"] > 0:
+            # Mostrar se houver atividades (qualquer status)
+            # Isso inclui CRQs com atividades concluídas, em execução, planejadas ou atrasadas
+            if seq_stats["total"] > 0:
                 emoji = sequencia_info["emoji"]
                 nome = sequencia_info["nome"]
                 # Usar total real da sequência em vez do config
